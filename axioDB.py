@@ -4,12 +4,27 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.exc import NoResultFound
-from sqlalchemy.inspection import inspect
+
 
 Base = declarative_base()
 
 
-class AxioProperty(Base):
+class ORM:
+
+    @staticmethod
+    def rows2dict(rows=[]):
+        if not rows:
+            return 0
+        dicts = []
+        for row in rows:
+            d = {}
+            for column in row.__table__.columns:
+                d[column.name] = str(getattr(row, column.name))
+            dicts.append(d)
+        return dicts
+
+
+class AxioProperty(Base, ORM):
 
     __tablename__ = "axio_properties"
     property_id = Column(
@@ -38,6 +53,8 @@ class AxioProperty(Base):
     last_sale_price = Column(String)
     parcel_number = Column(String)
     levels = Column(Integer)
+    latitude = Column(Numeric)
+    longitude = Column(Numeric)
 
     rent_comp_data = relationship("RentComp")
     apo = relationship("AxioPropertyOccupancy", cascade="all,delete")
@@ -62,9 +79,13 @@ class AxioProperty(Base):
     @staticmethod
     def fetch_all_property_data():
         return session.query(AxioProperty).all()
-    
-    
-class RentComp(Base):
+
+    @staticmethod
+    def fetch_all_property_data_by_state(state):
+        return session.query(AxioProperty).filter(AxioProperty.property_state == state).all()
+
+
+class RentComp(Base, ORM):
 
     __tablename__ = 'rent_comps'
 
@@ -108,8 +129,19 @@ class RentComp(Base):
         return session.query(RentComp).filter(
             RentComp.property_id.like(axio_id)).filter(RentComp.date_added == as_of_date).all()
 
+    @staticmethod
+    def fetch_all_rent_data():
+        return session.query(RentComp).all()
 
-class AxioPropertyOccupancy(Base):
+    @staticmethod
+    def fetch_unit_mix_for_ids(ids):
+        # todo max date
+        if not isinstance(ids, list):
+            ids = [ids]
+        return session.query(RentComp).filter(RentComp.property_id.in_(ids)).all()
+
+
+class AxioPropertyOccupancy(Base, ORM):
 
     __tablename__ = 'axio_property_occupancy'
 
@@ -130,6 +162,17 @@ class AxioPropertyOccupancy(Base):
     def get_occupancy_as_of_date(axio_id, as_of_date):
         return session.query(AxioPropertyOccupancy).get((axio_id, as_of_date))
 
+    @staticmethod
+    def fetch_all_occ_data():
+        return session.query(AxioPropertyOccupancy).all()
+
+    @staticmethod
+    def fetch_occupancies_for_ids(ids):
+        if not isinstance(ids, list):
+            ids = [ids]
+        return session.query(AxioPropertyOccupancy).filter(AxioPropertyOccupancy.property_id.in_(ids)).all()
+
+
 
 engine = create_engine('postgres://postgres:admin@localhost:5432/Acquisitions')
 Base.metadata.create_all(engine)
@@ -140,6 +183,6 @@ if __name__ == "__main__":
     # r_c = RentComp(property_id=10001, type="2B/2B", area=1000, quantity=50, avg_market_rent=1200, avg_effective_rent=1000)
     # session.add(r_c)
     # session.commit()
-    r = AxioProperty()
-    ids = r.fetch_all_property_ids()
-    print
+    # r = AxioProperty()
+    # ids = r.fetch_all_property_ids()
+    pass
